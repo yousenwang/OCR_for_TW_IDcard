@@ -1,11 +1,11 @@
 import sys
+
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog
 from PyQt5.QtGui import QImage, QPixmap
-
 import pytesseract
 import cv2
-import re
 import numpy as np
+
 
 class IDCardOCRApp(QWidget):
     def __init__(self):
