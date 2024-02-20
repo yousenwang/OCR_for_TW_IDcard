@@ -56,6 +56,8 @@ for j, y in enumerate(myPicList):
 
     myData = []
 
+    print(f'Extracting data from {y}')
+
     for x, r in enumerate(roi):
         cv2.rectangle(
             imgMask,
@@ -67,9 +69,13 @@ for j, y in enumerate(myPicList):
         
         imgShow = cv2.addWeighted(imgShow, 0.9, imgMask, 0.1, 0)
 
-        # imgCrop = imgScan[r[0][1]: r[1][1], r[0][0]:r[1][0]]
-
-        # if r[2] == 'text':
+        imgCrop = imgScan[r[0][1]: r[1][1], r[0][0]:r[1][0]]
+        # cv2.imshow(str(x), imgCrop)
+        if r[2] == 'text':
+            extracted_entity = pytesseract.image_to_string(imgCrop, lang='chi_tra+eng')
+            # r[3] is the name
+            print(f'{r[3]}: {extracted_entity}')
+            myData.append(extracted_entity)
     
     cv2.imshow(y+"2", imgShow)
     cv2.waitKey(0)

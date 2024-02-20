@@ -42,7 +42,18 @@ class IDCardOCRApp(QWidget):
         per = 25
         pixelThreshold = 500
 
-        roi = [[(49, 101), (123, 126), 'text', 'Name (Chinese)']]
+        roi = [
+            [(49, 101), (123, 126), 'text', 'Name (Chinese)'],
+            [(47, 125), (195, 146), 'text', 'Name (English)'],
+            [(48, 199), (162, 220), 'text', 'Date of Birth'],
+            [(178, 200), (190, 218), 'text', 'Sex'],
+            [(261, 200), (319, 220), 'text', 'Authority (English)'],
+            [(50, 241), (153, 263), 'text', 'ID No.'],
+            [(168, 247), (236, 261), 'text', 'Date of Issue'],
+            [(251, 244), (320, 261), 'text', 'Date of Expiry'],
+            [(320, 66), (435, 217), 'box', 'ID Photo'],
+            [(323, 215), (436, 248), 'box', 'ID Signature']
+            ]
 
         imgQ = cv2.imread('./TWnationalIDcard.jpg')
 
@@ -95,8 +106,14 @@ class IDCardOCRApp(QWidget):
             imgShow = cv2.addWeighted(imgShow, 0.9, imgMask, 0.1, 0)
 
             imgCrop = imgScan[r[0][1]: r[1][1], r[0][0]:r[1][0]]
+
+            config = r'--oem 3'
             if r[2] == 'text':
-                extracted_entity = pytesseract.image_to_string(imgCrop, lang='chi_tra+eng')
+                extracted_entity = pytesseract.image_to_string(
+                    imgCrop,
+                    # config = config,
+                    lang='chi_tra+eng'
+                    )
                 # r[3] is the name
                 print(f'{r[3]}: {extracted_entity}')
                 mapping = {r[3]: extracted_entity.strip()}
