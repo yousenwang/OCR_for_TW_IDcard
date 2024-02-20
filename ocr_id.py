@@ -1,8 +1,11 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QImage, QPixmap
+
 import pytesseract
 import cv2
+import re
+import numpy as np
 
 class IDCardOCRApp(QWidget):
     def __init__(self):
@@ -32,11 +35,86 @@ class IDCardOCRApp(QWidget):
             self.processImage(filename)
 
     def processImage(self, filename):
-        image = cv2.imread(filename)
-        text = pytesseract.image_to_string(image, lang='chi_tra+eng')
-        self.result_label.setText(text)
-        pixmap = QPixmap(filename)
+        img = cv2.imread(filename)
+
+        ##
+
+        per = 25
+        pixelThreshold = 500
+
+        roi = [[(49, 101), (123, 126), 'text', 'Name (Chinese)']]
+
+        imgQ = cv2.imread('./TWnationalIDcard.jpg')
+
+        h, w, c = imgQ.shape
+
+        orb = cv2.ORB_create(1000)
+        kp1, des1 = orb.detectAndCompute(imgQ, None)
+
+        ##
+        kp2, des2 = orb.detectAndCompute(img, None)
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+        matches = list(bf.match(des2, des1))
+        matches.sort(key=lambda x: x.distance)
+        good = matches[:int(len(matches) * (per / 100))]
+        imgMatch = cv2.drawMatches(
+            img,
+            kp2,
+            img,
+            kp1,
+            good[:100],
+            None,
+            flags = 2
+        )
+
+        srcPoints = np.float32(
+            [kp2[m.queryIdx].pt for m in good]
+        ).reshape(-1, 1, 2)
+
+        dstPoints = np.float32(
+            [kp1[m.trainIdx].pt for m in good]
+        ).reshape(-1, 1, 2)
+
+        M, _ = cv2.findHomography(srcPoints, dstPoints, cv2.RANSAC, 5.0)
+        imgScan = cv2.warpPerspective(img, M, (w, h))
+
+        imgShow = imgScan.copy()
+        imgMask = np.zeros_like(imgShow)
+
+        myData = {}
+
+        for x, r in enumerate(roi):
+            cv2.rectangle(
+                imgMask,
+                (r[0][0], r[0][1]),
+                (r[1][0], r[1][1]),
+                (0, 255, 0),
+                cv2.FILLED
+            )
+            
+            imgShow = cv2.addWeighted(imgShow, 0.9, imgMask, 0.1, 0)
+
+            imgCrop = imgScan[r[0][1]: r[1][1], r[0][0]:r[1][0]]
+            if r[2] == 'text':
+                extracted_entity = pytesseract.image_to_string(imgCrop, lang='chi_tra+eng')
+                # r[3] is the name
+                print(f'{r[3]}: {extracted_entity}')
+                mapping = {r[3]: extracted_entity.strip()}
+                myData.update(mapping)
+
+        self.result_label.setText(str(myData))
+
+
+        # Convert image to QPixmap for display
+        image = cv2.cvtColor(imgShow, cv2.COLOR_BGR2RGB)
+        h, w, ch = image.shape
+        bytesPerLine = ch * w
+        qImg = QImage(image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qImg)
+
+        # Display the image with bounding boxes
         self.image_label.setPixmap(pixmap)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
